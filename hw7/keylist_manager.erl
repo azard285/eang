@@ -3,6 +3,15 @@
 
 -export([start/0, loop/1]).
 
+start() ->
+    ServerPid = spawn(?MODULE, init, []),
+    register(?MODULE, SPid),
+    MonitorRef = monitor(process, ServerPid),
+    {ok, ServerPid, MonitorRef}.
+
+init() ->
+    process_flag(trap_exit, true),
+    loop(#state{}).
 
 loop(State) ->
     receive
@@ -45,13 +54,3 @@ loop(State) ->
             NewChildren = lists:keydelete(Pid, 2, State#state.children), % Вот честно не смог найти другой выход кроме как использовать функции lists :(
             loop(State#state{children = NewChildren})
     end.
-
-start() ->
-    ServerPid = spawn(?MODULE, init, []),
-    register(?MODULE, SPid),
-    MonitorRef = monitor(process, ServerPid),
-    {ok, ServerPid, MonitorRef}.
-
-init() ->
-    process_flag(trap_exit, true),
-    loop(#state{}).
