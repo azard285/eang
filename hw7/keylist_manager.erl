@@ -1,12 +1,12 @@
 -module(keylist_manager).
 -include("keylist.hrl").
 
--export([start/0, loop/1]).
+-export([start/0, init/0, loop/1]).
 
 start() ->
     ServerPid = spawn(?MODULE, init, []),
-    register(?MODULE, SPid),
-    MonitorRef = monitor(process, ServerPid),
+    register(?MODULE, ServerPid),
+    MonitorRef = erlang:monitor(process, ServerPid),
     {ok, ServerPid, MonitorRef}.
 
 init() ->
@@ -37,7 +37,7 @@ loop(State) ->
                     exit(Pid, normal),
                     NewChildren = proplist:delete(Name, State#state.children),
                     From ! ok,
-                    loop(State#state{children = NewChildren});
+                    loop(State#state{children = NewChildren})
             end;
 
         stop ->
