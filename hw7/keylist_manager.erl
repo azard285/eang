@@ -41,9 +41,8 @@ loop(State) ->
             end;
 
         stop ->
-            io:format("Сервер завершил свою работу"),
+            io:format("Сервер завершил свою работу~n"),
             [Name ! stop || {Name, _} <- State#state.children],
-            io:format("Сервер дети свою работу"),
             ok;
 
         {From, get_state} ->
