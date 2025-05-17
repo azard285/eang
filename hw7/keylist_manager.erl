@@ -15,7 +15,7 @@ init() ->
 
 loop(State) ->
     receive
-        {From, start_link, Name} ->
+        {From, start_child, Name} ->
             case proplist:get_value(Name, State#state.children) of
                 undefined ->
                     {ok, Pid} = keylist:start_link(Name),
