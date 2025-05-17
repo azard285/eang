@@ -16,7 +16,7 @@ init() ->
 loop(State) ->
     receive
         {From, start_child, Name} ->
-            case proplist:get_value(Name, State#state.children) of
+            case proplists:get_value(Name, State#state.children) of
                 undefined ->
                     {ok, Pid} = keylist:start_link(Name),
                     NewChildren = [{Name, Pid} | State#state.children],
@@ -29,7 +29,7 @@ loop(State) ->
             end;
 
         {From, stop_child, Name} ->
-            case proplist:get_value(Name, State#state.children) of
+            case proplists:get_value(Name, State#state.children) of
                 undefined ->
                     From ! {error, not_found},
                     loop(State);
@@ -42,7 +42,8 @@ loop(State) ->
 
         stop ->
             io:format("Сервер завершил свою работу"),
-            [exit(Pid, normal) || {_, Pid} <- State#state.children],
+            [Name ! stop || {Name, _} <- State#state.children],
+            io:format("Сервер дети свою работу"),
             ok;
 
         {From, get_state} ->
