@@ -3,6 +3,8 @@
 
 -export([start/0, init/0, loop/1, start_child/1, stop_child/1, stop/0, get_names/0]).
 
+-type params() :: #{name => atom(), restart => permanent | temporary}.
+
 start() ->
     ServerPid = spawn(?MODULE, init, []),
     register(?MODULE, ServerPid),
@@ -15,14 +17,18 @@ init() ->
 
 loop(State) ->
     receive
-        {From, start_child, Name} ->
+        {From, start_child, #{name := Name, restart := Restart}} ->
             case proplists:get_value(Name, State#state.children) of
                 undefined ->
                     {ok, Pid} = keylist:start_link(Name),
                     NewChildren = [{Name, Pid} | State#state.children],
+                    Newparm = case Restart of
+                        permanent -> [Pid | State#state.permanent];
+                        temporary -> State#state.permanent
+                    end,
                     From ! {ok, Pid},
                     io:format("Процесс начат: ~p, ~p~n", [Name, Pid]),
-                    loop(State#state{children = NewChildren});
+                    loop(State#state{children = NewChildren, permanent = Newparm});
                 Pid -> 
                     From ! {ok, Pid},
                     loop(State)
@@ -35,9 +41,10 @@ loop(State) ->
                     loop(State);
                 Pid -> 
                     exit(Pid, normal),
-                    NewChildren = proplist:delete(Name, State#state.children),
+                    NewChildren = proplists:delete(Name, State#state.children),
+                    Newparm = proplists:delete(Pid, State#state.permanent),
                     From ! ok,
-                    loop(State#state{children = NewChildren})
+                    loop(State#state{children = NewChildren, permanent = Newparm})
             end;
 
         stop ->
@@ -50,16 +57,31 @@ loop(State) ->
             loop(State);
 
         {'EXIT', Pid, Reason} ->
-            io:format("Завершение процесса: ~p, ~p~n", [Pid, Reason]),
-            NewChildren = lists:keydelete(Pid, 2, State#state.children), % Вот честно не смог найти другой выход кроме как использовать функции lists :(
-            loop(State#state{children = NewChildren})
+            case lists:keysearch(Pid, 2, State#state.children) of
+                {Name, Pid} ->
+                    case lists:member(Pid, State#state.permanent) of
+                        true -> 
+                            io:format("Перезапуск процесса: ~p~n", [Pid]),
+                            {ok, NewPid} = keylist:start_link(Name),
+                            NewChildren = lists:keyreplace(Name, 1, State#state.children, {Name, NewPid}),
+                            Newparm = lists:delete(Pid, State#state.permanent) ++ [NewPid],
+                            loop(State#state{children = NewChildren, permanent = Newparm});
+                        false ->
+                            io:format("Завершение процесса: ~p, ~p~n", [Pid, Reason]),
+                            NewChildren = lists:keydelete(Pid, 2, State#state.children), % Вот честно не смог найти другой выход кроме как использовать функции lists :(
+                            Newparm = lists:delete(Pid, State#state.permanent),
+                            loop(State#state{children = NewChildren, permanent = Newparm})
+                    end;
+                false -> 
+                    loop(State)
+            end
     end.
 
-start_child(Name) ->
-    keylist_manager ! {self(), start_child, Name}.
+start_child(Params) ->
+    keylist_manager ! {self(), start_child, Params}.
 
-stop_child(Name) ->
-    keylist_manager ! {self(), stop_child, Name}.
+stop_child(Params) ->
+    keylist_manager ! {self(), stop_child, Params}.
 
 stop() ->
     keylist_manager ! stop.

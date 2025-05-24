@@ -1,1 +1,1 @@
--record(state, {children = [] :: list({Name :: atom(), Pid :: pid()}) }).
+-record(state, {children = [] :: list({Name :: atom(), Pid :: pid()}), permanent = [] :: list(pid()) }).
