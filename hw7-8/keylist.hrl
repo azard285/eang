@@ -1,0 +1,1 @@
+-record(state, {children = [] :: list({Name :: atom(), Pid :: pid()}) }).

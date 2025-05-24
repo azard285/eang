@@ -1,0 +1,147 @@
+%% Сделал полный вывод Erlshell с небольшим разделением пунктов вывода. Если так не нужно пожалуйста при проверке напишите, сделаю идеальный вывод без лишних пунктов и тд.
+%% Так же оставлю ссылку на гит (может быть интересует) https://github.com/azard285/eang/tree/main/hw7
+
+Erlang/OTP 25 [erts-13.2.2.5] [source] [64-bit] [smp:16:16] [ds:16:16:10] [async-threads:1] [jit:ns]
+
+Eshell V13.2.2.5  (abort with ^G)
+-----------------------------Пункт 1------------------------------
+1> self().
+<0.82.0>
+2> c(keylist_manager).
+{ok,keylist_manager}
+
+-----------------------------Пункт 2------------------------------
+3> keylist_manager:start()
+3> .
+{ok,<0.91.0>,#Ref<0.3141338476.2380529666.147029>}
+
+-----------------------------Пункт 4------------------------------
+4>  keylist_manager ! {self(), start_child, keylist1}.
+{<0.82.0>,start_child,keylist1}
+Процесс начат: keylist1, <0.94.0>
+5>  keylist_manager ! {self(), start_child, keylist2}.
+Процесс начат: keylist2, <0.95.0>
+{<0.82.0>,start_child,keylist2}
+6>  keylist_manager ! {self(), start_child, keylist3}.
+Процесс начат: keylist3, <0.97.0>
+{<0.82.0>,start_child,keylist3}
+7> flush().
+Shell got {ok,<0.94.0>}
+Shell got {ok,<0.95.0>}
+Shell got {ok,<0.97.0>}
+ok
+8> flush().
+ok
+
+-----------------------------Пункт 3------------------------------
+9> whereis(keylist_manager).
+<0.91.0>
+
+-----------------------------Пункт 5------------------------------
+10>  keylist_manager ! {self(), get_state}.
+{<0.82.0>,get_state}
+11> flush().
+Shell got [{keylist3,<0.97.0>},{keylist2,<0.95.0>},{keylist1,<0.94.0>}]
+ok
+
+-----------------------------Пункт 6------------------------------
+12> keylist3 ! some.
+some
+
+-----------------------------Пункт 7------------------------------
+13> exit(<0.94.0>, error).
+Завершение процесса: <0.94.0>, error
+true
+
+-----------------------------Пункт 8------------------------------
+14>  keylist_manager ! {self(), get_state}.
+{<0.82.0>,get_state}
+15> flush().
+Shell got [{keylist3,<0.97.0>},{keylist2,<0.95.0>}]
+ok
+
+
+
+16>  keylist_manager ! stop.
+Сервер завершил свою работуstop
+17> whereis(keylist_manager).
+undefined
+18> whereis(keylist2).
+<0.95.0>
+19> whereis(keylist1).
+undefined
+20> whereis(keylist2).
+<0.95.0>
+21> whereis(keylist3).
+<0.97.0>
+22> c(keylist_manager).    
+{ok,keylist_manager}
+23>  keylist_manager ! stop. 
+** exception error: bad argument
+     in operator  !/2
+        called as keylist_manager ! stop
+24>  keylist_manager:       
+init/0         loop/1         module_info/0  module_info/1  start/0        
+
+24>  keylist_manager:start().
+{ok,<0.122.0>,#Ref<0.3141338476.2380529666.147221>}
+25>  keylist_manager ! stop. 
+Сервер завершил свою работуstop
+Сервер дети свою работу26> whereis(keylist2).
+<0.95.0>
+27>  keylist_manager:start().
+{ok,<0.126.0>,#Ref<0.3141338476.2380529666.147242>}
+28>  keylist_manager ! {self(), start_child, keyl2}.
+Процесс начат: keyl2, <0.128.0>
+{<0.120.0>,start_child,keyl2}
+29>  keylist_manager ! stop.
+Сервер завершил свою работуstop
+Сервер дети свою работу30> whereis(keyl2).
+<0.128.0>
+31> whereis(keylist_manager:).
+* 1:25: syntax error before: ')'
+31> whereis(keylist_manager).
+undefined
+32> whereis(keyl2).
+<0.128.0>
+33> keyl2 ! stop.
+stop
+34> whereis(keyl2).
+undefined
+(search)`c(': c(keylist_manager).
+{ok,keylist_manager}
+36>  keylist_manager:start().
+{ok,<0.143.0>,#Ref<0.3141338476.2380529679.146623>}
+
+-----------------------------Пункт 9------------------------------
+37>  keylist_manager ! {self(), start_child, keyl3}.
+Процесс начат: keyl3, <0.145.0>
+{<0.120.0>,start_child,keyl3}
+38> whereis(keyl3).
+<0.145.0>
+39>  keylist_manager ! stop.
+stop
+Сервер завершил свою работуСервер дети свою работу40> whereis(keyl3).
+undefined
+41> whereis(keyl3).
+undefined
+
+-----------------------------Пункт 10------------------------------
+42>  keylist_manager:start().
+{ok,<0.151.0>,#Ref<0.3141338476.2380529666.147348>}
+43> exit(<0.151.0>, kill).
+true
+44> flush().
+Shell got {'DOWN',#Ref<0.3141338476.2380529666.147221>,process,<0.122.0>,
+                  normal}
+Shell got {ok,<0.128.0>}
+Shell got {'DOWN',#Ref<0.3141338476.2380529666.147242>,process,<0.126.0>,
+                  normal}
+Shell got {ok,<0.145.0>}
+Shell got {'DOWN',#Ref<0.3141338476.2380529679.146623>,process,<0.143.0>,
+                  normal}
+Shell got {'DOWN',#Ref<0.3141338476.2380529666.147348>,process,<0.151.0>,
+                  killed}
+ok
+45> q().
+ok
