@@ -1,0 +1,79 @@
+Eshell V13.2.2.5  (abort with ^G)
+1> keylist_manager:start().
+{ok,<0.84.0>,#Ref<0.2417514666.3187146753.254426>}
+2> keylist_manager:start_child(#(name => key1, restart => permanent)).
+* 1:30: syntax error before: '('
+2> keylist_manager:start_child(#{name => key1, restart => permanent}).
+ok
+Процесс начат: key1, <0.88.0>
+3> keylist_manager:start_child(#{name => key2, restart => temporary}).
+Процесс начат: key2, <0.89.0>
+ok
+4> whereis(key1).
+<0.88.0>
+5> whereis(key2).
+<0.89.0>
+6> exit(key1, kill).
+** exception error: bad argument
+     in function  exit/2
+        called as exit(key1,kill)
+        *** argument 1: not a pid
+7> exit(whereis(key1), kill).
+Перезапуск процесса: <0.88.0>
+true
+8> whereis(key1).
+<0.95.0>
+9> exit(whereis(key2), kill).
+Завершение процесса: <0.89.0>, killed
+true
+10> whereis(key2).
+undefined
+11> ke
+kernel             kernel_config      kernel_refc        keylist
+keylist_manager
+11> keylist:add(key1, l1, "val", "comm").
+ok
+12> keylist:find(key1, l1).
+ok
+13> flush().
+Shell got ok
+Shell got {ok,{l1,"val","comm"}}
+ok
+14> keylist:add(key1, l2, "val2", "comm2").
+ok
+15> keylist:find(key1, l2).
+ok
+16> flush().
+Shell got ok
+Shell got {ok,{l2,"val2","comm2"}}
+ok
+17> keylist:is_member(key1, l1).
+ok
+18> flush().
+Shell got {ok,true}
+ok
+19> keylist:take(key1, l1).
+ok
+20> flush().
+Shell got {ok,{l1,"val","comm"}}
+ok
+21> keylist:take(key1, l3).
+ok
+22> flush().
+Shell got {ok,not_found}
+ok
+23> keylist:delete(key1, l1).
+ok
+24> keylist:find(key1, l1).
+ok
+25> flush().
+Shell got ok
+Shell got {ok,not_found}
+ok
+26> keylist:find(key1, l2).
+ok
+27> flush().
+Shell got {ok,{l2,"val2","comm2"}}
+ok
+28> q().
+ok
