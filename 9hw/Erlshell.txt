@@ -1,0 +1,69 @@
+1> Device1 = #{id => 1, name => "WaterSensor", address => "Room 101", temperature => 25, metrics => [{water_consumption, 124}]},
+1> iotdev:add_device(Device1).
+ok
+2> Device2 = #{id => 2, name => "TempSensor", address => "Room 102", temperature => 30, metrics => [{temp, 43}, {mem_load, 57}]},
+2> iotdev:add_device(Device2).
+ok
+3> iotdev:find_device(1).
+{ok,{device,1,"WaterSensor","Room 101",25,
+            [{water_consumption,124}]}}
+4> iotdev:find_device(2).
+{ok,{device,2,"TempSensor","Room 102",30,
+            [{temp,43},{mem_load,57}]}}
+5> iotdev:find_device(999).
+{error,not_found}
+6> Updates = #{temperature => 26, metrics => [{water_consumption, 130}]},
+6> iotdev:update_device(1, Updates).
+ok
+7> iotdev:find_device(1).
+{ok,{device,1,"WaterSensor","Room 101",26,
+            [{water_consumption,130}]}}
+8> iotdev:update_device(999, #{temperature => 50}).
+{error,not_found}
+9> iotdev:delete_device(2).
+ok
+10> iotdev:find_device(2).
+{error,not_found}
+11> iotdev:delete_device(999).
+ok
+
+16> Device3 = #{id => 3, name => "NewSensor", address => "Room 103", temperature => 22, metrics => [{power_usage, 75}]},
+16> iotdev:add_device(Device3).
+ok
+17> iotdev:find_device(3).
+{ok,{device,3,"NewSensor","Room 103",22,[{power_usage,75}]}}
+18> gen_server:stop(iotdev).
+ok
+19> =SUPERVISOR REPORT==== 31-May-2025::22:56:21.789925 ===
+    supervisor: {local,iotdev_sup}
+    errorContext: child_terminated
+    reason: normal
+    offender: [{pid,<0.178.0>},
+               {id,iotdev},
+               {mfargs,{iotdev,start_link,[]}},
+               {restart_type,permanent},
+               {significant,false},
+               {shutdown,5000},
+               {child_type,worker}]
+
+
+19> iotdev:find_device(3).
+{ok,{device,3,"NewSensor","Room 103",22,[{power_usage,75}]}}
+20> gen_server:stop(iotdev).
+ok
+=SUPERVISOR REPORT==== 31-May-2025::23:03:26.147739 ===
+    supervisor: {local,iotdev_sup}
+    errorContext: child_terminated
+    reason: normal
+    offender: [{pid,<0.189.0>},
+               {id,iotdev},
+               {mfargs,{iotdev,start_link,[]}},
+               {restart_type,permanent},
+               {significant,false},
+               {shutdown,5000},
+               {child_type,worker}]
+
+21> iotdev:find_device(3).  
+{ok,{device,3,"NewSensor","Room 103",22,[{power_usage,75}]}}
+22> q().
+ok
