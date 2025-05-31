@@ -1,0 +1,11 @@
+{application, iotdev_app,
+ [{description, "IoT Device Management Application"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {iotdev_app, []}},
+  {applications, [kernel, stdlib, jsx]},
+  {env,[]},
+  {modules, []},
+  {licenses, ["Apache-2.0"]},
+  {links, []}
+ ]}.

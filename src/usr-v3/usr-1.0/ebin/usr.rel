@@ -1,0 +1,5 @@
+{release, {"Mobile User Database", "R1"}, {erts, "13.2.2.9"},
+ [{kernel, "8.5.4.3"},
+  {stdlib, "4.3.1.4"},
+  {usr, "1.0"}]}.
+
