@@ -1,0 +1,50 @@
+1> code_lock:start_link([1,2,3],9).
+Locked
+{ok,<0.82.0>}
+2> code_lock:button(1).
+ok
+3> code_lock:button(2).
+ok
+4> code_lock:button(3).
+Open
+ok
+Locked
+5> code_lock:button(1).
+ok
+6> code_lock:button(1).
+ok
+7> code_lock:button(1).
+ok
+8> code_lock:button(1).
+ok
+9> code_lock:button(1).
+Error: uncorrect pass 3 times
+ok
+Locked
+10> code_lock:button(1).
+ok
+11> code_lock:button(2).
+ok
+12> code_lock:button(3).
+Open
+ok
+Locked
+13> code_lock:set_code([1,2]).
+{error,not_open}
+14> code_lock:button(1).      
+ok
+15> code_lock:button(2).
+ok
+16> code_lock:button(3).      
+Open
+ok
+17> code_lock:set_code([1,2]).
+ok
+Locked
+18> code_lock:button(1).      
+ok
+19> code_lock:button(2).      
+Open
+ok
+20> q().
+ok
