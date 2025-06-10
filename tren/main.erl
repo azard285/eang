@@ -1,5 +1,5 @@
 -module(main).
--export([fact/1, fib/1, sum_list/1, len/1]).
+-export([fact/1, fib/1, sum_list/1, len/1, rever/1]).
 
 fact(1) ->
     1;
@@ -14,9 +14,6 @@ fib(1) ->
 
 fib(2) ->
     1;  
-
-% fib(3) ->
-%     1;   
 
 fib(N) ->
     fib(N-1) + fib(N-2).
@@ -36,6 +33,16 @@ len([]) ->
 
 len(List) ->
     1 + len(tl(List)).
+
+%--------------------------------------------------------------------
+
+rever([H | T]) ->
+    if
+        T == [] ->
+            [H];
+        true ->
+            rever(T) ++ [H]
+    end.
 
 
 
