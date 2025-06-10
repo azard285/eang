@@ -1,5 +1,5 @@
 -module(main).
--export([fact/1, fib/1, sum_list/1]).
+-export([fact/1, fib/1, sum_list/1, len/1]).
 
 fact(1) ->
     1;
@@ -28,5 +28,15 @@ sum_list([]) ->
 
 sum_list(List) ->
     hd(List) + sum_list(tl(List)).
+
+%--------------------------------------------------------------------
+
+len([]) ->
+    0;
+
+len(List) ->
+    1 + len(tl(List)).
+
+
 
 
