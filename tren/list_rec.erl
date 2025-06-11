@@ -42,16 +42,32 @@ fold(Fun, List, Acc) ->
 % 
 
 
-flat_l(H) ->
-    if
-        is_list(H) ->
-            case H of
-                [] -> [];
-                [HE | TL] -> flat_l(HE) ++ flat_l(TL)
-            end;
-        true ->
-            H
-        end.
+% flat_l(H) ->
+%     if
+%         is_list(H) ->
+%             case H of
+%                 [] -> [];
+%                 [HE | TL] -> flat_l(HE) ++ flat_l(TL)
+%             end;
+%         true ->
+%             H
+%         end.
+
+% flat(List) ->
+%     [flat_l(N) || N <- List].
+
 
 flat(List) ->
-    [flat_l(N) || N <- List].
+    flatt(List, []).
+
+flatt([H | T], Acc) ->
+    if 
+        is_list(H) ->
+            flatt(T, flatt(H, Acc));
+        true ->
+            flatt(T, Acc ++ [H])
+    end;
+
+flatt([], Acc) ->
+    Acc.
+
