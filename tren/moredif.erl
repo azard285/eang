@@ -1,5 +1,5 @@
 -module(moredif).
--export([start/0]).
+-export([start/0, keyval/0]).
 
 
 start() ->
@@ -19,3 +19,33 @@ loop() ->
     end.
 
 %---------------------------------
+
+-record(key_value, {pers = [] :: list({Key :: atom(), Value :: atom()})}).
+
+keyval() ->
+    spawn(fun() -> loop(#key_value{}) end).
+
+loop(State) ->
+    receive
+        {put, Key, Value} ->
+            case proplists:get_value(Key, State#key_value.pers) of
+                undefined ->
+                    Newpers = [{Key, Value} | State#key_value.pers],
+                    loop(State#key_value{pers = Newpers});
+                _ ->
+                    Newpers = proplists:delete(Key, State#key_value.pers) ++ [{Key, Value}],
+                    loop(State#key_value{pers = Newpers})
+            end;
+        {get, Key} ->
+            case proplists:get_value(Key, State#key_value.pers) of
+                undefined ->
+                    io:format("такого нету"),
+                    loop(State);
+                _ ->
+                    io:format("~p~n", [proplists:get_value(Key, State#key_value.pers)]),
+                    loop(State)
+            end
+    end.
+
+
+
