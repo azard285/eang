@@ -55,17 +55,56 @@ loop(State) ->
 str() ->
     Suppid = spawn(?MODULE, init, []),
     register(?MODULE, Suppidp),
-    {ok, Suppid}.
+    Monitor = erlang:monitor(process, Suppid),
+    {ok, Suppid, Monitor}.
 
 init() ->
     process_flag(trap_exit, true),
     lap(#state{}).
+
+lap_child() ->
+    receive
+        stop ->
+            ok;
+        Msg ->
+            io:format("Msg: ~p~n", [Msg])
+    end.
 
 lap(State) ->
     receive 
         {From, start_child, Name} ->
             case proplists:get_value(State#super.child) of
                 undefined ->
-                    Childpid = spawn(fun() -> lap())
+                    Childpid = spawn_link(fun() -> lap_child() end),
+                    Newch = [{Name, Childpid} | State#super.child],
+                    lap(State#super{child = Newch});
+                Pid ->
+                    io:format("Уже есть"),
+                    lap(State)
+            end;
+        {From, stop_child, Name} ->
+            case proplists:get_value(State#super.child) of
+                undefined ->
+                    io:format("Такого нет"),
+                    lap(State);
+                Pid ->
+                    Pid ! stop,
+                    Newch = proplists:delete(Name, State#super.child),
+                    lap(State#super{child = Newch})
+            end;
+        {'EXIT', Pid, Reason} ->
+            case lists:keyfind(Pid, 2, State#super.child) of
+                {Name, Pid} ->
+                    io:format("перезапуск процесса ~p~n", [Pid]),
+                    Newch = proplists:delete(Name, State#super.child),
+                    Childpid = spawn_link(fun() -> lap_child() end),
+                    Newch ++ [Name, Childpid],
+                    lap(State#super{child = Newch});
+                false ->
+                    lap(State)
+            end
+        end.
+
+
 
 
