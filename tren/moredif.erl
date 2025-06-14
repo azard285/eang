@@ -1,6 +1,7 @@
 -module(moredif).
 -export([start/0, keyval/0]).
 -export([str/0, init/0, init_child/1]). % 13 task supervisor
+-export([pmap/2]).
 
 
 start() ->
@@ -114,6 +115,27 @@ lap(State) ->
                     lap(State)
             end
         end.
+
+%---------------------------------
+
+
+child_pmap(From, Fun, N) ->
+    Pid = spawn(fun() -> Result = Fun(N), From ! {self(), Result} end).
+
+gath([], Acc) ->
+    Acc;
+
+gath([Pid | T], Acc) ->
+    receive
+        {Pid, Result} ->
+            gath(T, Acc ++ [Result])
+    end.
+
+pmap(Fun, List) ->
+    Listpid = [child_pmap(self(), Fun, N) || N <- List],
+    gath(Listpid, []).
+
+
 
 
 
