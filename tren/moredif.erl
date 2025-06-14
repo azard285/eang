@@ -48,4 +48,24 @@ loop(State) ->
     end.
 
 
+%---------------------------------
+
+-record(super, {child = [] :: list({Name :: atom(), Pid :: pid()})}).
+
+str() ->
+    Suppid = spawn(?MODULE, init, []),
+    register(?MODULE, Suppidp),
+    {ok, Suppid}.
+
+init() ->
+    process_flag(trap_exit, true),
+    lap(#state{}).
+
+lap(State) ->
+    receive 
+        {From, start_child, Name} ->
+            case proplists:get_value(State#super.child) of
+                undefined ->
+                    Childpid = spawn(fun() -> lap())
+
 
