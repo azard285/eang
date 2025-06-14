@@ -1,5 +1,6 @@
 -module(moredif).
 -export([start/0, keyval/0]).
+-export([str/0, init/0, init_child/1]). % 13 task supervisor
 
 
 start() ->
@@ -54,13 +55,22 @@ loop(State) ->
 
 str() ->
     Suppid = spawn(?MODULE, init, []),
-    register(?MODULE, Suppidp),
-    Monitor = erlang:monitor(process, Suppid),
-    {ok, Suppid, Monitor}.
+    register(?MODULE, Suppid),
+    %Monitor = erlang:monitor(process, Suppid),
+    {ok, Suppid}.
 
 init() ->
     process_flag(trap_exit, true),
-    lap(#state{}).
+    lap(#super{}).
+
+str_child(Name) ->
+    Childpid = spawn_link(?MODULE, init_child, [Name]),
+    Childpid.
+
+init_child(Name) ->
+    register(Name, self()),
+    lap_child().
+
 
 lap_child() ->
     receive
@@ -73,19 +83,21 @@ lap_child() ->
 lap(State) ->
     receive 
         {From, start_child, Name} ->
-            case proplists:get_value(State#super.child) of
+            case proplists:get_value(Name, State#super.child) of
                 undefined ->
-                    Childpid = spawn_link(fun() -> lap_child() end),
+                    Childpid = str_child(Name),
+                    From ! {ok, Childpid},
                     Newch = [{Name, Childpid} | State#super.child],
                     lap(State#super{child = Newch});
                 Pid ->
-                    io:format("Уже есть"),
+                    io:format("Уже есть ~p~n", [Pid]),
                     lap(State)
             end;
         {From, stop_child, Name} ->
-            case proplists:get_value(State#super.child) of
+            case proplists:get_value(Name, State#super.child) of
                 undefined ->
-                    io:format("Такого нет"),
+                    io:format("Такого нет ~n"),
+                    From ! {error, not_found},
                     lap(State);
                 Pid ->
                     Pid ! stop,
@@ -95,10 +107,8 @@ lap(State) ->
         {'EXIT', Pid, Reason} ->
             case lists:keyfind(Pid, 2, State#super.child) of
                 {Name, Pid} ->
-                    io:format("перезапуск процесса ~p~n", [Pid]),
-                    Newch = proplists:delete(Name, State#super.child),
-                    Childpid = spawn_link(fun() -> lap_child() end),
-                    Newch ++ [Name, Childpid],
+                    io:format("перезапуск процесса ~p ~p~n", [Pid, Reason]),
+                    Newch = proplists:delete(Name, State#super.child) ++ [{Name, str_child(Name)}],
                     lap(State#super{child = Newch});
                 false ->
                     lap(State)
