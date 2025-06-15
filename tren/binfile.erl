@@ -10,8 +10,19 @@
 
 -module(binfile).
 
--export([read_file/1]).
+-export([read_file/1, count_words/1]).
 
 read_file(File) ->
     {ok, Text} = file:read_file(File),
     io:format("~s~n", [Text]).
+
+
+
+%---------------------------------
+
+count_words(File) ->
+    {ok, Text} = file:read_file(File),
+
+    io:format("~p~n", [length(string:split(Text, " ", all))]).
+
+
