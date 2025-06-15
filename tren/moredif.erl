@@ -136,6 +136,36 @@ pmap(Fun, List) ->
     gath(Listpid, []).
 
 
+%---------------------------------
+
+
+proc() ->
+    Pid = spawn(fun() -> obrabotchik() end),
+    register(?MODULE, Pid),
+    {ok, Pid}.
+
+add([]) ->
+    0;    
+add([H | T]) ->
+    H + add(T).
+
+multiply([]) ->
+    1;    
+multiply([H | T]) ->
+    H * add(T).
+
+obrabotchik() ->
+    receive
+        {From, add, List} ->
+            Res = add(List),
+            io:format("Result add: ~p~n", [Res]),
+            From ! {ok, Res};
+        {From, multiply, List} ->
+            Res = multiply(List),
+            io:format("Result add: ~p~n", [Res]),
+            From ! {ok, Res};
+        stop ->
+            ok.
 
 
 
