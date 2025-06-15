@@ -2,6 +2,7 @@
 -export([start/0, keyval/0]).
 -export([str/0, init/0, init_child/1]). % 13 task supervisor
 -export([pmap/2]).
+-export([proc/0, add/1, multiply/1, obrabotchik/0, stop/0]).
 
 
 start() ->
@@ -144,28 +145,38 @@ proc() ->
     register(?MODULE, Pid),
     {ok, Pid}.
 
-add([]) ->
+addl([]) ->
     0;    
-add([H | T]) ->
-    H + add(T).
+addl([H | T]) ->
+    H + addl(T).
 
-multiply([]) ->
+multiplyl([]) ->
     1;    
-multiply([H | T]) ->
-    H * add(T).
+multiplyl([H | T]) ->
+    H * multiplyl(T).
+
+add(List) ->
+    moredif ! {self(), add, List}.
+multiply(List) ->
+    moredif ! {self(), multiply, List}.
+stop() ->
+    moredif ! stop.
 
 obrabotchik() ->
     receive
         {From, add, List} ->
-            Res = add(List),
+            Res = addl(List),
             io:format("Result add: ~p~n", [Res]),
-            From ! {ok, Res};
+            From ! {ok, Res},
+            obrabotchik();
         {From, multiply, List} ->
-            Res = multiply(List),
-            io:format("Result add: ~p~n", [Res]),
-            From ! {ok, Res};
+            Res = multiplyl(List),
+            io:format("Result multiply: ~p~n", [Res]),
+            From ! {ok, Res},
+            obrabotchik();
         stop ->
-            ok.
+            ok
+    end.
 
 
 
