@@ -8,6 +8,8 @@
 
 % Парсинг CSV: Сделай простой парсер CSV-файла (разделитель — запятая).
 
+%--------------------------------- 16 task
+
 -module(binfile).
 
 -export([read_file/1, count_words/1, en_decode/2, csv_pars/1]).
@@ -18,7 +20,7 @@ read_file(File) ->
 
 
 
-%---------------------------------
+%--------------------------------- 17 task
 
 count_words(File) ->
     {ok, Text} = file:read_file(File),
@@ -26,7 +28,7 @@ count_words(File) ->
     io:format("~p~n", [length(string:split(Text, " ", all))]).
 
 
-%---------------------------------
+%---------------------------------18 task 
 
 en_decode(Text, Shift) ->
     List = [ case Shift >= 0 of
@@ -49,7 +51,7 @@ en_decode(Text, Shift) ->
     io:format("Text/list ~p~n", [List]).
 
 
-%---------------------------------
+%--------------------------------- 20 task
 
 csv_pars(File) ->
     {ok, Text} = file:read_file(File),
