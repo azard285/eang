@@ -10,7 +10,7 @@
 
 -module(binfile).
 
--export([read_file/1, count_words/1, en_decode/2]).
+-export([read_file/1, count_words/1, en_decode/2, csv_pars/1]).
 
 read_file(File) ->
     {ok, Text} = file:read_file(File),
@@ -47,4 +47,13 @@ en_decode(Text, Shift) ->
                 end
                 || N <- Text],
     io:format("Text/list ~p~n", [List]).
+
+
+%---------------------------------
+
+csv_pars(File) ->
+    {ok, Text} = file:read_file(File),
+
+    io:format("~s~n~n~n ~p ~n", [Text, string:split(Text, ",", all)]).
+
 
