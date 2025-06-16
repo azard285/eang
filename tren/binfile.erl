@@ -10,7 +10,7 @@
 
 -module(binfile).
 
--export([read_file/1, count_words/1]).
+-export([read_file/1, count_words/1, en_decode/2]).
 
 read_file(File) ->
     {ok, Text} = file:read_file(File),
@@ -25,4 +25,26 @@ count_words(File) ->
 
     io:format("~p~n", [length(string:split(Text, " ", all))]).
 
+
+%---------------------------------
+
+en_decode(Text, Shift) ->
+    List = [ case Shift >= 0 of
+                true -> 
+                    if 
+                        N + Shift >= 127 ->
+                            32 + (Shift - (127 - N));
+                        true ->
+                            N + Shift
+                    end;
+                false ->
+                     if 
+                        N + Shift =< 31 ->
+                            126 + (Shift + (N - 32));
+                        true ->
+                            N + Shift
+                    end
+                end
+                || N <- Text],
+    io:format("Text/list ~p~n", [List]).
 
