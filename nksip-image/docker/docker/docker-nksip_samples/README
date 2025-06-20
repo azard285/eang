@@ -1,0 +1,25 @@
+0. git clone https://github.com/NetComposer/nksip_samples
+
+1. Fix nksip_samples/rebar.config -- use fixed version for meck library
+
+  {deps, [
+      {meck, "0.8.12"},
+
+  or use rebar.config
+
+2. Build docker image
+
+3. Run container
+
+  # make pbx
+
+  # From Erlang shell
+
+  > nksip_pbx:start_trace().
+
+  > nksip_pbx:loglevel(debug).
+
+4. Open SIP-client (Twinkle)
+
+  Connect to our PBX: 100@localhost, password 1234, TCP
+  Call 100@localhost

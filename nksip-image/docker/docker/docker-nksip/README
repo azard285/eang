@@ -1,0 +1,31 @@
+0. git clone https://github.com/NetComposer/nksip
+
+1. Build docker image
+
+2. Run container
+
+3. Start SSH server inside container (for debug only)
+
+  # service ssh start
+  # ss -l
+
+4. Connect to container via SSH
+
+  $ ssh -p 2222 sipuser@localhost
+    password
+
+container$ ss -l
+
+5. From container shell:
+
+  # cd /buildroot/nksip
+  # make shell
+
+  # From Erlang shell
+  > nksip:start_link(test, #{sip_listen=>"sip:all, sips:all"}).
+
+  # Check TCP ports
+
+  > nksip_uac:options(test, "sip:sip2sip.info", []).
+
+
