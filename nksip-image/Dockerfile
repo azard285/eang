@@ -1,11 +1,6 @@
 # Build stage 0
 FROM public.ecr.aws/docker/library/erlang:21
 
-# For apt-get install debian moment
-RUN sed -i 's/deb.debian.org/archive.debian.org/g' /etc/apt/sources.list \
-    && sed -i 's|security.debian.org/debian-security|archive.debian.org/debian-security|g' /etc/apt/sources.list \
-    && sed -i '/buster-updates/d' /etc/apt/sources.list
-
 # Install SSH server for debug only
 RUN apt-get update && apt-get install -y openssh-server
 RUN mkdir /var/run/sshd
