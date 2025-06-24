@@ -33,15 +33,20 @@ accept_loop(LSock) ->
     end.
 
 stop() ->
-    [exit(N, normal) || N <- ets:lookup(serv, pids)],
-    gen_tcp:close(ets:lookup(serv, value)).
+    [{pids, Pids}] = ets:lookup(serv, pids),
+    [exit(N, normal) || N <- Pids],
+        
+    [{socket, LSock}] = ets:lookup(serv, socket),
+    gen_tcp:close(LSock),
+    ets:delete(serv),
+    ok.
 
 handle(Socket) ->
     case gen_tcp:recv(Socket, 0) of
         {ok, Data} ->
             String = unicode:characters_to_list(Data),
             UpString = verh_reg(String),
-            io:format("получил: ~s   отправляю: ~s~n", [String, UpString]),
+            io:format("получил: ~s~nотправляю: ~s~n", [String, UpString]),
             
             gen_tcp:send(Socket, UpString),
             handle(Socket);

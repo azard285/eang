@@ -1,7 +1,5 @@
 % GenServer: Реализуй сервер очереди (queue) через gen_server.
 
-% Работа с JSON: Используй библиотеку jsx для парсинга и генерации JSON.
-
 %--------------------------------- 21 task
 % Что такое сервер очереди?
 % Это процесс, который:
@@ -55,8 +53,6 @@ handle_call(show, _From, [H|T]) ->
     {reply, [H|T], [H|T]};
 handle_call(show, _From, []) ->
     {reply, empty, []}.
-
-
 
 
 handle_cast({push, Atom}, State) ->
