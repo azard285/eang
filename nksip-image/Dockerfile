@@ -1,5 +1,5 @@
 # Build stage 0
-FROM public.ecr.aws/docker/library/erlang:21
+FROM erlang:21
 
 # Install SSH server for debug only
 RUN apt-get update && apt-get install -y openssh-server

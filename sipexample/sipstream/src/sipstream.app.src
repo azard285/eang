@@ -1,0 +1,9 @@
+{application, sipstream, [
+  {description, "sip stream Application"},
+  {vsn, "0.6.0"},
+  {modules, []},
+  {registered, []},
+  {mod, {sipstream, []}},
+  {applications, [kernel, stdlib, nksip]},
+  {env, []}
+]}.
