@@ -3,7 +3,7 @@
 
 -include_lib("nksip/include/nksip.hrl").
 
--define(DEFAULT_SIP_SERVER, "192.168.186.227"). % Host IP from Twinkle logs
+-define(DEFAULT_SIP_SERVER, "192.168.186.227").
 -define(DEFAULT_SIP_USER, "1000").
 -define(DEFAULT_SIP_PASS, "1234").
 -define(DEFAULT_AUDIO_URL, "http://icecast.omroep.nl/radio1-bb-mp3").
@@ -75,23 +75,20 @@ start() ->
     end.
 
 start_streaming(SipUser, AudioUrl, Duration, HostIP) ->
-    Uri = "sip:" ++ SipUser ++ "@" ++ HostIP ++ ":5062", % Twinkle on port 5062
+    Uri = "sip:" ++ SipUser ++ "@" ++ HostIP ++ ":5062",
     io:format("Calling to: ~s~n", [Uri]),
 
-    % Check audio URL availability
     case os:cmd("curl -I " ++ AudioUrl ++ " 2>&1") of
         CurlResult ->
             io:format("Checking URL ~s: ~s~n", [AudioUrl, CurlResult])
     end,
 
-    % Start FFmpeg via port
-    FFMpegCmd = "ffmpeg -loglevel warning -re -i '" ++ AudioUrl ++
-                "' -f mulaw -ar 8000 -ac 1 -c:a pcm_mulaw -",
+    FFMpegCmd = "ffmpeg -loglevel info -timeout 10000000 -re -i '" ++ AudioUrl ++
+                "' -f mulaw -ar 8000 -ac 1 -c:a pcm_mulaw -bufsize 128k -",
     io:format("Starting FFmpeg with command: ~s~n", [FFMpegCmd]),
-    Port = open_port({spawn, FFMpegCmd}, [binary, exit_status, {line, 1024}, stderr_to_stdout]),
-    put(ffmpeg_port, Port), % Store port for later use
+    Port = open_port({spawn, FFMpegCmd}, [binary, exit_status]),
+    put(ffmpeg_port, Port),
 
-    % Configure SDP
     SDP = nksip_sdp:new("streamer", [
         {audio, [
             {port, 4000},
@@ -103,16 +100,15 @@ start_streaming(SipUser, AudioUrl, Duration, HostIP) ->
         ]}
     ]),
 
-    % Perform INVITE with authentication
     io:format("Sending INVITE to ~s~n", [Uri]),
     case nksip_uac:invite(streamer, Uri, [
-        {sdp, SDP},
+        {body, SDP},
         {headers, [
-            {"Contact", "<sip:streamer@" ++ HostIP ++ ":5061>"},
+            {"Contact", "<sip:streamer@" ++ HostIP ++ ":5062>"},
             {"Content-Type", "application/sdp"},
             {"User-Agent", "SIPStreamer/1.0"}
         ]},
-        {sip_auth_pass, ?DEFAULT_SIP_PASS}, % Authentication for 1000
+        {sip_auth_pass, ?DEFAULT_SIP_PASS},
         {call_timeout, 60000}
     ]) of
         {ok, Code, Resp} when Code >= 200, Code < 300 ->
@@ -159,15 +155,21 @@ stream_audio(Port) ->
 stream_audio_loop(Socket, Port) ->
     receive
         {Port, {data, Data}} ->
-            gen_udp:send(Socket, "192.168.186.227", 8000, Data), % Twinkle RTP port
+            io:format("Received FFmpeg data: ~p bytes~n", [byte_size(Data)]),
+            case gen_udp:send(Socket, "192.168.186.227", 8000, Data) of
+                ok ->
+                    io:format("Sent RTP packet: ~p bytes to 192.168.186.227:8000~n", [byte_size(Data)]);
+                {error, Reason} ->
+                    io:format("Error sending RTP packet: ~p~n", [Reason])
+            end,
             stream_audio_loop(Socket, Port);
-        {Port, {exit_status, _Status}} ->
-            io:format("FFmpeg process terminated, stopping audio stream~n"),
+        {Port, {exit_status, Status}} ->
+            io:format("FFmpeg process terminated with status: ~p~n", [Status]),
             gen_udp:close(Socket),
             stop(),
             ok;
         {Port, closed} ->
-            io:format("FFmpeg port closed, stopping audio stream~n"),
+            io:format("FFmpeg port closed~n"),
             gen_udp:close(Socket),
             stop(),
             ok
