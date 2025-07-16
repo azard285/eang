@@ -1,152 +1,197 @@
 -module(sipstream).
--export([start/0, stop/0, invite_callback/4, stream_audio/0, stream_audio_loop/2]).
+-export([start/0, stop/0, invite_callback/4, stream_audio/1, stream_audio_loop/2]).
 
 -include_lib("nksip/include/nksip.hrl").
 
--define(DEFAULT_SIP_SERVER, "host.docker.internal").  
+-define(DEFAULT_SIP_SERVER, "192.168.186.227"). % Host IP from Twinkle logs
 -define(DEFAULT_SIP_USER, "1000").
 -define(DEFAULT_SIP_PASS, "1234").
 -define(DEFAULT_AUDIO_URL, "http://icecast.omroep.nl/radio1-bb-mp3").
 -define(DEFAULT_CALL_DURATION, 3600).
 
 start() ->
-    
-    application:load(lager),
-    application:set_env(lager, handlers, [
-        {lager_console_backend, info}
-    ]),
-    
-    
-    {ok, _} = application:ensure_all_started(lager),
-    {ok, _} = application:ensure_all_started(nksip),
-    
-    
+    application:set_env(lager, handlers, []),
+    application:set_env(lager, error_logger_redirect, false),
+
+    case application:ensure_all_started(nksip) of
+        {ok, _} ->
+            io:format("NkSIP started~n");
+        {error, Reason} ->
+            io:format("Error starting NkSIP: ~p~n", [Reason]),
+            stop(),
+            {error, Reason}
+    end,
+
     SipUser = os:getenv("SIP_USER", ?DEFAULT_SIP_USER),
     AudioUrl = os:getenv("AUDIO_URL", ?DEFAULT_AUDIO_URL),
     CallDuration = list_to_integer(os:getenv("CALL_DURATION", 
         integer_to_list(?DEFAULT_CALL_DURATION))),
-    
-    io:format("Starting SIP Streamer~nUser: ~s~nAudio: ~s~nDuration: ~ps~n",
-              [SipUser, AudioUrl, CallDuration]),
-    
-    
+    HostIP = os:getenv("HOST_IP", ?DEFAULT_SIP_SERVER),
+    {ok, LocalIP} = inet:getaddr(HostIP, inet),
+    io:format("Local IP resolved: ~p~n", [LocalIP]),
+
+    io:format("Starting SIP Streamer~nUser: ~s~nAudio: ~s~nDuration: ~ps~nHost: ~s~n",
+              [SipUser, AudioUrl, CallDuration, HostIP]),
+
+    CmdResult = os:cmd("nc -zuv " ++ HostIP ++ " 5062 2>&1"),
+    io:format("Checking port 5062 (UDP): ~s~n", [CmdResult]),
+
+    RtpCheck = os:cmd("nc -zuv " ++ HostIP ++ " 8000 2>&1"),
+    io:format("Checking port 8000 (RTP, UDP): ~s~n", [RtpCheck]),
+
     SipConfig = #{
-        sip_from => "\"Streamer\" <sip:streamer@host.docker.internal>",
-        sip_local_host => "host.docker.internal",
-        sip_listen => "sip:all:5060",
-        sip_transports => [{udp, all, 5060}],
+        sip_from => "\"Streamer\" <sip:streamer@" ++ HostIP ++ ">",
+        sip_local_host => HostIP,
+        sip_listen => "sip:all:5061",
+        sip_transports => [{udp, all, 5061}],
         plugins => [nksip_uac_auto_auth],
         callback => {?MODULE, invite_callback, []}
     },
-    
+
     case nksip:start_link(streamer, SipConfig) of
-        {ok, _} ->
-            io:format("NkSIP started successfully~n"),
-            start_streaming(SipUser, AudioUrl, CallDuration);
-        Error ->
-            io:format("Failed to start NkSIP: ~p~n", [Error]),
-            stop()
+        {ok, Pid} ->
+            io:format("NkSIP successfully started, PID: ~p~n", [Pid]),
+            case nksip_uac:register(streamer, "sip:streamer@" ++ HostIP, [
+                {sip_pass, ?DEFAULT_SIP_PASS},
+                {contact, "<sip:streamer@" ++ HostIP ++ ":5062>"},
+                {expires, 3600}
+            ]) of
+                {ok, 200, _} ->
+                    io:format("Streamer registered in Asterisk~n"),
+                    start_streaming(SipUser, AudioUrl, CallDuration, HostIP);
+                {ok, Code, Resp} ->
+                    io:format("Error registering streamer, code ~p: ~p~n", [Code, Resp]),
+                    stop(),
+                    {error, {registration_failed, Code}};
+                {error, ErrorReason} ->
+                    io:format("Error registering streamer: ~p~n", [ErrorReason]),
+                    stop(),
+                    {error, {registration_failed, ErrorReason}}
+            end;
+        {error, ErrorReason} ->
+            io:format("Error starting NkSIP: ~p~n", [ErrorReason]),
+            stop(),
+            {error, ErrorReason}
     end.
 
-start_streaming(SipUser, AudioUrl, Duration) ->
-    TwinkleIP = "host.docker.internal",  
-    Uri = "sip:" ++ SipUser ++ "@" ++ TwinkleIP,
-    io:format("Calling Twinkle at: ~s~n", [Uri]),
-    
-    
-    os:cmd("mkfifo /tmp/audio_pipe 2>/dev/null"),
-    
-    
-    spawn(fun() -> 
-        Cmd = "ffmpeg -loglevel warning -i '" ++ AudioUrl ++ 
-              "' -f mulaw -ar 8000 -ac 1 -y /tmp/audio_pipe",
-        Port = open_port({spawn, Cmd}, [binary, stderr_to_stdout, exit_status]),
-        io:format("FFmpeg command: ~s~n", [Cmd]),
-        monitor_ffmpeg_port(Port)
-    end),
-    
-    
+start_streaming(SipUser, AudioUrl, Duration, HostIP) ->
+    Uri = "sip:" ++ SipUser ++ "@" ++ HostIP ++ ":5062", % Twinkle on port 5062
+    io:format("Calling to: ~s~n", [Uri]),
+
+    % Check audio URL availability
+    case os:cmd("curl -I " ++ AudioUrl ++ " 2>&1") of
+        CurlResult ->
+            io:format("Checking URL ~s: ~s~n", [AudioUrl, CurlResult])
+    end,
+
+    % Start FFmpeg via port
+    FFMpegCmd = "ffmpeg -loglevel warning -re -i '" ++ AudioUrl ++
+                "' -f mulaw -ar 8000 -ac 1 -c:a pcm_mulaw -",
+    io:format("Starting FFmpeg with command: ~s~n", [FFMpegCmd]),
+    Port = open_port({spawn, FFMpegCmd}, [binary, exit_status, {line, 1024}, stderr_to_stdout]),
+    put(ffmpeg_port, Port), % Store port for later use
+
+    % Configure SDP
     SDP = nksip_sdp:new("streamer", [
         {audio, [
             {port, 4000},
             {proto, udp},
-            {ip, "host.docker.internal"},  
+            {ip, HostIP},
             {fmt, ["0"]},
             {rtpmap, "0", "PCMU/8000"},
             {ptime, 20}
         ]}
     ]),
-    
-    
+
+    % Perform INVITE with authentication
+    io:format("Sending INVITE to ~s~n", [Uri]),
     case nksip_uac:invite(streamer, Uri, [
         {sdp, SDP},
         {headers, [
-            {"Contact", "<sip:streamer@host.docker.internal:5060>"},
+            {"Contact", "<sip:streamer@" ++ HostIP ++ ":5061>"},
             {"Content-Type", "application/sdp"},
             {"User-Agent", "SIPStreamer/1.0"}
         ]},
-        {call_timeout, 30000}
+        {sip_auth_pass, ?DEFAULT_SIP_PASS}, % Authentication for 1000
+        {call_timeout, 60000}
     ]) of
-        {ok, Code, _} when Code >= 200, Code < 300 ->
-            io:format("Call established (code ~p)~n", [Code]),
+        {ok, Code, Resp} when Code >= 200, Code < 300 ->
+            io:format("Call established (code ~p): ~p~n", [Code, Resp]),
             timer:sleep(Duration * 1000),
-            stop();
-        {ok, Code, _} ->
-            io:format("Call rejected with code ~p~n", [Code]),
-            stop();
-        Error ->
-            io:format("Call failed: ~p~n", [Error]),
-            stop()
+            ok;
+        {ok, Code, Resp} ->
+            io:format("Call rejected with code ~p: ~p~n", [Code, Resp]),
+            stop(),
+            {error, {invite_failed, Code}};
+        {error, ErrorReason} ->
+            io:format("Call error: ~p~n", [ErrorReason]),
+            stop(),
+            {error, {invite_failed, ErrorReason}}
     end.
-
-
-monitor_ffmpeg_port(Port) ->
-    receive
-        {Port, {data, Data}} ->
-            io:format("FFmpeg output: ~p~n", [Data]),
-            monitor_ffmpeg_port(Port);
-        {Port, {exit_status, Status}} ->
-            io:format("FFmpeg exited with status: ~p~n", [Status]);
-        _Other ->
-            monitor_ffmpeg_port(Port)
-    after 5000 ->
-        io:format("FFmpeg monitor timeout~n")
-    end.
-
 
 invite_callback({dialog_update, active, _}, _Dialog, _Req, _Args) ->
     io:format("Call active, starting audio stream~n"),
-    spawn(fun() -> stream_audio() end),
+    case get(ffmpeg_port) of
+        undefined ->
+            io:format("FFmpeg port not available, audio stream not started~n");
+        Port ->
+            spawn(fun() -> stream_audio(Port) end)
+    end,
     {reply, ok};
 invite_callback({dialog_update, stop, _}, _Dialog, _Req, _Args) ->
     io:format("Call ended~n"),
+    stop(),
     {reply, ok};
 invite_callback(_Event, _Dialog, _Req, _Args) ->
     {reply, ok}.
 
-
-stream_audio() ->
-    {ok, Socket} = gen_udp:open(4000, [binary, {active, false}]),
-    {ok, Pipe} = file:open("/tmp/audio_pipe", [read, binary, raw]),
-    io:format("Audio streaming started~n"),
-    stream_audio_loop(Socket, Pipe).
-
-stream_audio_loop(Socket, Pipe) ->
-    case file:read(Pipe, 160) of
-        {ok, Data} ->
-            gen_udp:send(Socket, {127,0,0,1}, 5004, Data),
-            stream_audio_loop(Socket, Pipe);
-        eof ->
-            file:close(Pipe),
-            gen_udp:close(Socket),
-            io:format("Audio streaming stopped~n")
+stream_audio(Port) ->
+    case gen_udp:open(4000, [binary, {active, false}]) of
+        {ok, Socket} ->
+            io:format("Audio stream started, UDP socket opened on port 4000~n"),
+            stream_audio_loop(Socket, Port);
+        {error, ErrorReason} ->
+            io:format("Error opening UDP port 4000: ~p~n", [ErrorReason]),
+            stop(),
+            {error, {udp_open_failed, ErrorReason}}
     end.
 
+stream_audio_loop(Socket, Port) ->
+    receive
+        {Port, {data, Data}} ->
+            gen_udp:send(Socket, "192.168.186.227", 8000, Data), % Twinkle RTP port
+            stream_audio_loop(Socket, Port);
+        {Port, {exit_status, _Status}} ->
+            io:format("FFmpeg process terminated, stopping audio stream~n"),
+            gen_udp:close(Socket),
+            stop(),
+            ok;
+        {Port, closed} ->
+            io:format("FFmpeg port closed, stopping audio stream~n"),
+            gen_udp:close(Socket),
+            stop(),
+            ok
+    after 30000 ->
+        io:format("Audio stream timeout~n"),
+        gen_udp:close(Socket),
+        stop(),
+        {error, audio_timeout}
+    end.
 
 stop() ->
     io:format("Stopping SIP Streamer...~n"),
-    nksip:stop(streamer),
+    case erlang:whereis(streamer) of
+        undefined ->
+            io:format("Streamer not running, skipping nksip:stop~n");
+        Pid when is_pid(Pid) ->
+            case nksip:stop(streamer) of
+                ok -> io:format("NkSIP stopped~n");
+                {error, Reason} -> io:format("Error stopping NkSIP: ~p~n", [Reason])
+            end
+    end,
+    case get(ffmpeg_port) of
+        undefined -> ok;
+        Port -> port_close(Port)
+    end,
     application:stop(nksip),
-    application:stop(lager),
-    os:cmd("rm -f /tmp/audio_pipe"),
-    init:stop().
+    ok.

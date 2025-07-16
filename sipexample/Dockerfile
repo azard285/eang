@@ -6,28 +6,29 @@ RUN sed -i 's/deb.debian.org/archive.debian.org/g' /etc/apt/sources.list && \
     sed -i 's|security.debian.org|archive.debian.org/|g' /etc/apt/sources.list && \
     sed -i '/buster-updates/d' /etc/apt/sources.list
 
-RUN apt-get update && apt-get install -y openssh-server \
+# Установка зависимостей
+RUN apt-get update && apt-get install -y \
     ffmpeg \
-    net-tools
-RUN mkdir /var/run/sshd
-RUN useradd -m -s /bin/bash sipuser
-RUN echo "sipuser:password" | chpasswd
-RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-RUN echo "Port 22" >> /etc/ssh/sshd_config
-EXPOSE 22
+    net-tools \
+    netcat-openbsd \
+    wget
 
-# Set working directory
-RUN mkdir /buildroot
+# Установка rebar3 (версия 3.14.0 для совместимости с OTP 21)
+RUN wget https://github.com/erlang/rebar3/releases/download/3.14.0/rebar3 && \
+    chmod +x rebar3 && \
+    mv rebar3 /usr/local/bin/
+
+# Установка рабочей директории
 WORKDIR /buildroot
 
-# Copy Erlang application
+# Копирование приложения
 COPY sipstream sipstream
 
-# Build
+# Компиляция
 WORKDIR sipstream
-#RUN make pbx
+#RUN rebar3 compile
 
-EXPOSE 5061/udp
-EXPOSE 4000-4010/udp
+# Открытие портов
+EXPOSE 5061/udp 4000-4010/udp
 
 CMD ["/bin/bash"]
